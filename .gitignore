@@ -9,4 +9,8 @@ _*/
 
 /.vs
 
-cuopt-isaacsim-sample-extension/cuopt-isaacsim-demo/app
+cuopt-isaacsim-sample-extension/cuopt-isaacsim-demo/app.ipynb_checkpoints/
+# Jupyter autosave dirs & files
+**/.ipynb_checkpoints/
+**/*-checkpoint.ipynb
+**/*-checkpoint.*
