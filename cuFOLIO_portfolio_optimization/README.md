@@ -1,8 +1,8 @@
 # cuFOLIO: GPU-Accelerated Portfolio Optimization
 
-cuFOLIO is an accelerated computing library designed to accelerate investment portfolio construction and management. cuFOLIO leverages NVIDIA's cutting-edge technologies including cuOpt, RAPIDS, and the HPC SDK to deliver substantial performance gains in portfolio optimization.
+cuFOLIO is a GPU-accelerated computing library designed to speed up investment portfolio construction and management. cuFOLIO leverages NVIDIA's cutting-edge cuOpt technology to deliver substantial performance gains in portfolio optimization.
 
-cuFOLIO is built to leverage and extend key components of the NVIDIA accelerated computing stack for financial optimization workflows. The components we integrated are illustrated below:
+Portfolio optimization is a key component of portfolio construction. The full workflow is illustrated below, and other NVIDIA libraries can be leveraged to accelerate the pre- and post-optimization steps.
 
 ![cuFOLIO](./images/cufolio.png)
 
@@ -19,15 +19,16 @@ GPU-accelerated solutions allow financial institutions to navigate the complexit
 
 ## cuOpt for GPU-Accelerated Optimization
 
-cuFOLIO utilizes NVIDIA cuOpt, a GPU-accelerated combinatorial and linear optimization engine for solving complex route optimization problems such as Vehicle Routing and large Linear Programming problems. cuOpt is designed to tackle large-scale problems with millions of variables and constraints, enabling near-real-time optimization and driving significant cost savings.
+cuFOLIO utilizes NVIDIA cuOpt, a GPU-accelerated solver for decision optimization.
+https://www.nvidia.com/en-us/ai-data-science/products/cuopt/
 
 ## Optimization Methods
 
-The current implementation of cuFOLIO supports Conditional Value-at-Risk (CVaR), with support for mean-variance optimization under active development.
+The current implementation of cuFOLIO supports Conditional Value-at-Risk (CVaR) as the risk measure, with support for mean-variance optimization planned for future development.
 
-### Conditional Value-at-Risk (CVaR)
+### CVaR
 
-Conditional Value-at-Risk (CVaR), also known as Expected Shortfall, provides a more comprehensive view of tail risk than traditional Value-at-Risk (VaR). While VaR estimates the maximum expected loss at a given confidence level (e.g., 95%), it doesn't take the magnitude of losses beyond that threshold into account. In contrast, CVaR captures the average of those extreme losses that exceed the VaR cutoff, offering a more robust and informative measure of downside risk. This makes CVaR particularly valuable for understanding true risk exposure, as it addresses the limitations of VaR by focusing on extreme loss scenarios.
+CVaR, also known as Expected Shortfall, provides a more comprehensive view of tail risk than traditional Value-at-Risk (VaR). While VaR estimates the maximum expected loss at a given confidence level (e.g., 95%), it doesn't take the magnitude of losses beyond that threshold into account. In contrast, CVaR captures the average of those extreme losses that exceed the VaR cutoff, offering a more robust and informative measure of downside risk. This makes CVaR particularly valuable for understanding true risk exposure, as it addresses the limitations of VaR by focusing on extreme loss scenarios.
 
 ### Mean-Variance Optimization (Future Support Planned)
 
