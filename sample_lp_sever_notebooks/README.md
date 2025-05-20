@@ -4,6 +4,10 @@ This section demonstrates how to use NVIDIA cuOpt to solve math optimization pro
 
 Note: you must have the cuOpt service running at localhost:5000 
 
+## Google Colab Enabled
+
+The notebooks are designed to be run in Google Colab. You would need to install cuopt packages before running the notebooks, instructions are provided in the notebooks.
+
 ## Examples
 
 ### 1. Linear Programming

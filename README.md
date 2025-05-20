@@ -22,6 +22,14 @@ For detailed system requirements, please refer to the [NVIDIA cuOpt System Requi
 
 Specific requirements are listed in each workflow's README.md and in the root directory's requirements.txt files.
 
+## Google Colab Enabled
+
+Most of these notebooks are Google Colab enabled. You would need to install cuopt packages before running the notebooks, instructions are provided in the notebooks.
+Please refer to the README.md of each notebook for more details whether it is Google Colab enabled or not.
+
+To use these on google colab, you can load notebooks from this [repository directly in google colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb). 
+
+
 ### Running the Examples
 1. Clone this repository:
 ```bash

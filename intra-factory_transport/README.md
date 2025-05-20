@@ -2,6 +2,10 @@
 
 This notebook demonstrates how to use NVIDIA cuOpt to solve an intra-factory transport optimization problem using the cuOpt Python SDK API. The example focuses on optimizing the routes for Autonomous Mobile Robots (AMRs) within a factory environment.
 
+## Google Colab Enabled
+
+The notebooks are designed to be run in Google Colab. You would need to install cuopt packages before running the notebooks, instructions are provided in the notebooks.
+
 ## Problem Overview
 
 The notebook solves a Capacitated Pickup and Delivery Problem with Time Windows (CPDPTW) where:

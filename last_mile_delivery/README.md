@@ -4,7 +4,7 @@ This section demonstrates how to use NVIDIA cuOpt to solve last-mile delivery op
 
 ## Google Colab Enabled
 
-The notebooks are designed to be run in Google Colab. You would need to install cuopt wheels before running the notebooks, instructions are provided in the notebooks.
+The notebooks are designed to be run in Google Colab. You would need to install cuopt packages before running the notebooks, instructions are provided in the notebooks.
 
 ## Examples
 
