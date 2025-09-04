@@ -78,37 +78,75 @@ def create_variables(var_types, var_lb=None, var_ub=None):
             variables.append(var)
         return variables
     
-def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode, solver_method, verbose, solver_verbose):
+def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode, solver_method, verbose, solver_verbose, timing=False):
     """Create and solve LP from dictionary representation."""
 
-    start = time.time()
+    # Start overall timing
+    total_start_time = time.time()
+    if timing:
+        print(f"🕐 [T+{0.000:.3f}s] Starting CVXPY cuOpt solver...")
     
-    # Get dimensions (these are fast regardless of type)
+    # Phase 1: Problem Analysis
+    analysis_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Analyzing problem dimensions...")
+    
     n_variables = len(problem_dict['variable_types'])
     n_constraints = len(problem_dict['constraint_bounds']['lower_bounds'])
     
-    # Process variable bounds early
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Problem: {n_variables} variables, {n_constraints} constraints")
+    
+    analysis_time = time.time() - analysis_start
+    
+    # Phase 2: Variable Bounds Processing
+    bounds_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Processing variable bounds...")
+    
     var_lb = process_bounds(problem_dict['variable_bounds']['lower_bounds'])
     var_ub = process_bounds(problem_dict['variable_bounds']['upper_bounds'])
     
-    # Create variables with bounds, otherwise add them as constraints
+    bounds_time = time.time() - bounds_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Variable bounds processed ({bounds_time:.3f}s)")
+    
+    # Phase 3: Variable Creation
+    vars_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating {n_variables} variables...")
+    
     if not matrix_variable_bounds:
         x = create_variables(problem_dict['variable_types'],
                              var_lb,
                              var_ub)
     else:
         x = create_variables(problem_dict['variable_types'])
+    
+    vars_time = time.time() - vars_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Variable creation completed ({vars_time:.3f}s)")
 
-    a = time.time()
-    # Create objective (avoid unnecessary conversion if already numpy array)
+    # Phase 4: Objective Setup
+    obj_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Setting up objective function...")
+    
     obj_coeffs = (np.array(problem_dict['objective_data']['coefficients']) 
                  if not isinstance(problem_dict['objective_data']['coefficients'], np.ndarray)
                  else problem_dict['objective_data']['coefficients'])
     obj_offset = problem_dict['objective_data']['offset']
     objective = (cp.Minimize if not problem_dict['maximize'] else cp.Maximize)(obj_coeffs @ x + obj_offset)
+    
+    obj_time = time.time() - obj_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Objective setup completed ({obj_time:.3f}s)")
 
-    a = time.time()
-    # Create constraint matrix (already efficient with CSR format)
+    # Phase 5: Constraint Matrix Creation
+    matrix_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating constraint matrix...")
+    
     A = sparse.csr_matrix(
         (problem_dict['csr_constraint_matrix']['values'],
          problem_dict['csr_constraint_matrix']['indices'],
@@ -116,19 +154,35 @@ def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode
         shape=(n_constraints, n_variables)
     )
     
-    a = time.time()
-    # Process bounds efficiently
+    matrix_time = time.time() - matrix_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint matrix created ({matrix_time:.3f}s)")
+    
+    # Phase 6: Constraint Bounds Processing
+    cbounds_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Processing constraint bounds...")
+    
     lower_bounds = process_bounds(problem_dict['constraint_bounds']['lower_bounds'])
     upper_bounds = process_bounds(problem_dict['constraint_bounds']['upper_bounds'])
     
-    a = time.time()
-    # Create constraints efficiently
+    cbounds_time = time.time() - cbounds_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint bounds processed ({cbounds_time:.3f}s)")
+    # Phase 7: Constraint Creation (POTENTIAL BOTTLENECK)
+    constraints_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating constraints...")
+    
     constraints = []
     
     # Pre-compute masks for different constraint types
     equality_mask = (lower_bounds == upper_bounds) & (lower_bounds != -np.inf) & (upper_bounds != np.inf)
     upper_mask = (upper_bounds != np.inf) & ~equality_mask
     lower_mask = (lower_bounds != -np.inf) & ~equality_mask
+    
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint analysis: {np.sum(equality_mask)} equality, {np.sum(upper_mask)} upper, {np.sum(lower_mask)} lower")
     
     # Check if x is a list (mixed variable types) or single variable
     if isinstance(x, list):
@@ -162,7 +216,20 @@ def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode
             low_indices = np.where(lower_mask)[0]
             constraints.append(A[low_indices, :] @ x >= lower_bounds[low_indices])
 
-    # Add variable bounds efficiently (var_lb and var_ub already processed earlier)
+    constraints_time = time.time() - constraints_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint creation completed ({constraints_time:.3f}s)")
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Created {len(constraints)} constraint groups")
+
+    # Phase 8: Variable Bounds Constraints (if applicable)
+    vbounds_start = time.time()
+    if matrix_variable_bounds:
+        if timing:
+            print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Adding variable bounds as constraints...")
+    else:
+        if timing:
+            print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Skipping variable bounds (included in variable definitions)")
+
     if matrix_variable_bounds:
         # Pre-compute masks for variable bounds
         var_eq_mask = (var_lb == var_ub) & (var_lb != -np.inf) & (var_ub != np.inf)
@@ -192,12 +259,27 @@ def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode
                 constraints.append(x[var_lb_mask] >= var_lb[var_lb_mask])
             if np.any(var_ub_mask):
                 constraints.append(x[var_ub_mask] <= var_ub[var_ub_mask])
+    
+    vbounds_time = time.time() - vbounds_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Variable bounds processing completed ({vbounds_time:.3f}s)")
             
-    # Create and solve problem
+    # Phase 9: Problem Setup
+    problem_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating CVXPY problem...")
+    
     prob = cp.Problem(objective, constraints)
     
-    # Use specified solver if provided
-    call_solver = time.time()
+    problem_time = time.time() - problem_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Problem creation completed ({problem_time:.3f}s)")
+    
+    # Phase 10: Solving
+    solve_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Starting solver...")
+    
     for i in range(1):
         if solver == "CUOPT":
             try: 
@@ -215,6 +297,56 @@ def solve_lp_from_dict(problem_dict, solver, matrix_variable_bounds, solver_mode
                                     solver_verbose=verbose or solver_verbose)
             except Exception:
                 pass
+
+    solve_time = time.time() - solve_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Solving completed ({solve_time:.3f}s)")
+
+    # Final Timing Summary
+    total_time = time.time() - total_start_time
+    if timing:
+        print(f"\n" + "="*80)
+        print(f"CVXPY TIMING SUMMARY - Total Time: {total_time:.3f}s")
+        print(f"="*80)
+        print(f"Phase 1  - Problem Analysis:      {analysis_time:8.3f}s ({analysis_time/total_time*100:5.1f}%)")
+        print(f"Phase 2  - Variable Bounds:       {bounds_time:8.3f}s ({bounds_time/total_time*100:5.1f}%)")
+        print(f"Phase 3  - Variable Creation:     {vars_time:8.3f}s ({vars_time/total_time*100:5.1f}%)")
+        print(f"Phase 4  - Objective Setup:       {obj_time:8.3f}s ({obj_time/total_time*100:5.1f}%)")
+        print(f"Phase 5  - Matrix Creation:       {matrix_time:8.3f}s ({matrix_time/total_time*100:5.1f}%)")
+        print(f"Phase 6  - Constraint Bounds:     {cbounds_time:8.3f}s ({cbounds_time/total_time*100:5.1f}%)")
+        print(f"Phase 7  - Constraints:           {constraints_time:8.3f}s ({constraints_time/total_time*100:5.1f}%)")
+        print(f"Phase 8  - Variable Bound Constr: {vbounds_time:8.3f}s ({vbounds_time/total_time*100:5.1f}%)")
+        print(f"Phase 9  - Problem Setup:         {problem_time:8.3f}s ({problem_time/total_time*100:5.1f}%)")
+        print(f"Phase 10 - SOLVING:               {solve_time:8.3f}s ({solve_time/total_time*100:5.1f}%) ⭐")
+        print(f"="*80)
+        
+        # Identify potential bottlenecks
+        bottleneck_threshold = 0.10 * total_time  # 10% of total time
+        print(f"BOTTLENECK ANALYSIS (phases >10% of total time):")
+        bottlenecks = []
+        if vars_time > bottleneck_threshold:
+            bottlenecks.append(f"  🐌 Variable Creation: {vars_time:.3f}s ({vars_time/total_time*100:.1f}%)")
+        if constraints_time > bottleneck_threshold:
+            bottlenecks.append(f"  🐌 Constraint Creation: {constraints_time:.3f}s ({constraints_time/total_time*100:.1f}%) [POTENTIAL OPTIMIZATION TARGET]")
+        if vbounds_time > bottleneck_threshold:
+            bottlenecks.append(f"  🐌 Variable Bounds Constraints: {vbounds_time:.3f}s ({vbounds_time/total_time*100:.1f}%)")
+        if solve_time > bottleneck_threshold:
+            bottlenecks.append(f"  ⭐ Actual Solving: {solve_time:.3f}s ({solve_time/total_time*100:.1f}%) [Expected]")
+        
+        if not bottlenecks:
+            print(f"  ✅ No significant bottlenecks detected (all phases <10%)")
+        else:
+            for bottleneck in bottlenecks:
+                print(bottleneck)
+        
+        print(f"\nOPTIMIZATION OPPORTUNITIES:")
+        if constraints_time > bottleneck_threshold:
+            print(f"  🎯 Constraint creation loop in {'mixed variable' if isinstance(x, list) else 'uniform variable'} mode")
+            print(f"  💡 Consider vectorized constraint creation or batch operations")
+        elif vars_time > bottleneck_threshold:
+            print(f"  🎯 Variable creation may benefit from optimization")
+        else:
+            print(f"  ✅ Performance looks good - no obvious optimization targets")
 
     return prob, x
 
@@ -239,7 +371,10 @@ if __name__ == "__main__":
                         help='Set the verbose option for both cvxpy itself and the solver. Default is False.')
 
     parser.add_argument('--solver_verbose', action='store_true', default=False,
-                        help='Set the verbose option for the solver only. Default is False.')    
+                        help='Set the verbose option for the solver only. Default is False.')
+    
+    parser.add_argument('--timing', action='store_true', default=False,
+                        help='Show detailed timing breakdown for performance analysis. Default is False.')
     
     # 0 Stable1
     # 1 Stable2
@@ -273,7 +408,8 @@ if __name__ == "__main__":
                                      args.solver_mode,
                                      args.solver_method,
                                      args.verbose,
-                                     args.solver_verbose)
+                                     args.solver_verbose,
+                                     args.timing)
     except Exception:
         import traceback
         traceback.print_exc()

@@ -75,7 +75,7 @@ def handle_infinity_values(data: Dict[str, Any]) -> Dict[str, Any]:
     
     return transform_recursive(data)
 
-def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] = None, verbose: bool = True) -> Dict:
+def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] = None, verbose: bool = True, timing: bool = False) -> Dict:
     """
     Read a cuOpt JSON file and solve using PuLP.
     
@@ -87,6 +87,8 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
         PuLP solver to use (e.g., 'PULP_CBC_CMD', 'GUROBI_CMD', 'CPLEX_CMD')
     verbose : bool
         Whether to print detailed output
+    timing : bool
+        Whether to show detailed timing analysis
         
     Returns
     -------
@@ -94,18 +96,39 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
         Results dictionary with solution information
     """
     
+    # Start overall timing
+    total_start_time = time.time()
+    if timing:
+        print(f"🕐 [T+{0.000:.3f}s] Starting PuLP cuOpt solver...")
+    
     if verbose:
         print(f"Reading cuOpt JSON file: {json_file_path}")
     
-    # Read the JSON file
+    # Phase 1: JSON Reading
+    read_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Reading JSON file...")
+    
     try:
         with open(json_file_path, 'r') as f:
             problem_data = json.load(f)
     except Exception as e:
         raise ValueError(f"Failed to read JSON file: {e}")
     
-    # Handle infinity values
+    read_time = time.time() - read_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] JSON reading completed ({read_time:.3f}s)")
+    
+    # Phase 2: Data Preprocessing
+    preprocess_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Processing infinity values...")
+    
     problem_data = handle_infinity_values(problem_data)
+    
+    preprocess_time = time.time() - preprocess_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Data preprocessing completed ({preprocess_time:.3f}s)")
     
     # Extract data from JSON structure
     csr_matrix = problem_data["csr_constraint_matrix"]
@@ -122,14 +145,24 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
         print(f"  - Constraints: {len(constraint_bounds['lower_bounds'])}")
         print(f"  - Objective sense: {'MAXIMIZE' if maximize else 'MINIMIZE'}")
     
-    start_time = time.time()
+    # Phase 3: Problem Setup
+    setup_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating PuLP problem object...")
     
-    # Create PuLP problem
     prob_name = os.path.splitext(os.path.basename(json_file_path))[0]
     sense = pulp.LpMaximize if maximize else pulp.LpMinimize
     prob = pulp.LpProblem(prob_name, sense)
     
-    # Create variables
+    problem_setup_time = time.time() - setup_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Problem setup completed ({problem_setup_time:.3f}s)")
+    
+    # Phase 4: Variable Creation
+    vars_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating {len(variable_bounds['lower_bounds'])} variables...")
+    
     num_vars = len(variable_bounds["lower_bounds"])
     variables = []
     
@@ -162,7 +195,15 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
         var = pulp.LpVariable(name, lowBound=lb, upBound=ub, cat=cat)
         variables.append(var)
     
-    # Set objective
+    vars_time = time.time() - vars_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Variable creation completed ({vars_time:.3f}s)")
+    
+    # Phase 5: Objective Setup
+    obj_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Setting up objective function...")
+    
     obj_coeffs = objective_data["coefficients"]
     obj_offset = objective_data.get("offset", 0.0)
     
@@ -173,7 +214,15 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
     
     prob += obj_expr, "Objective"
     
-    # Add constraints from CSR matrix
+    obj_time = time.time() - obj_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Objective setup completed ({obj_time:.3f}s)")
+    
+    # Phase 6: Constraint Preprocessing  
+    bounds_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Processing constraint bounds...")
+    
     offsets = csr_matrix["offsets"]
     indices = csr_matrix["indices"] 
     values = csr_matrix["values"]
@@ -200,13 +249,21 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
     upper_mask = np.isfinite(upper_bounds) & ~equality_mask
     lower_mask = np.isfinite(lower_bounds) & ~equality_mask
     
+    bounds_time = time.time() - bounds_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint bounds processed ({bounds_time:.3f}s)")
+    
     if verbose:
         print(f"Constraint analysis:")
         print(f"  - Equality constraints: {np.sum(equality_mask)}")
         print(f"  - Upper bound constraints: {np.sum(upper_mask)}")
         print(f"  - Lower bound constraints: {np.sum(lower_mask)}")
     
-    # Create constraints
+    # Phase 7: Constraint Creation (POTENTIAL BOTTLENECK)
+    constraints_start = time.time() 
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Creating {num_constraints} constraints...")
+    
     constraint_count = 0
     
     for i in range(num_constraints):
@@ -246,14 +303,18 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
                 prob += expr >= lower_bounds[i], f"C_{i}_low"
                 constraint_count += 1
     
-    setup_time = time.time() - start_time
+    constraints_time = time.time() - constraints_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Constraint creation completed ({constraints_time:.3f}s)")
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Created {constraint_count} constraint expressions")
     
     if verbose:
-        print(f"Problem setup completed in {setup_time:.3f} seconds")
         print(f"Created {constraint_count} constraints")
     
-    # Solve the problem
+    # Phase 8: Solving
     solve_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Starting solver...")
     
     if solver_name:
         if verbose:
@@ -271,9 +332,14 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
         prob.solve()
     
     solve_time = time.time() - solve_start
-    total_time = time.time() - start_time
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Solving completed ({solve_time:.3f}s)")
     
-    # Extract results
+    # Phase 9: Result Extraction
+    results_start = time.time()
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Extracting results...")
+    
     status = pulp.LpStatus[prob.status]
     objective_value = pulp.value(prob.objective) if prob.status == pulp.LpStatusOptimal else None
     
@@ -282,6 +348,53 @@ def solve_cuopt_json_with_pulp(json_file_path: str, solver_name: Optional[str] =
     if prob.status == pulp.LpStatusOptimal:
         for var in variables:
             variable_values[var.name] = var.varValue
+    
+    results_time = time.time() - results_start
+    if timing:
+        print(f"🕐 [T+{time.time() - total_start_time:.3f}s] Result extraction completed ({results_time:.3f}s)")
+    
+    # Final timing summary
+    total_time = time.time() - total_start_time
+    setup_time = total_time - solve_time  # For backwards compatibility
+    
+    if timing:
+        print(f"\n" + "="*80)
+        print(f"PULP TIMING SUMMARY - Total Time: {total_time:.3f}s")
+        print(f"="*80)
+        print(f"Phase 1  - JSON Reading:       {read_time:8.3f}s ({read_time/total_time*100:5.1f}%)")
+        print(f"Phase 2  - Data Preprocessing: {preprocess_time:8.3f}s ({preprocess_time/total_time*100:5.1f}%)")
+        print(f"Phase 3  - Problem Setup:      {problem_setup_time:8.3f}s ({problem_setup_time/total_time*100:5.1f}%)")
+        print(f"Phase 4  - Variable Creation:  {vars_time:8.3f}s ({vars_time/total_time*100:5.1f}%)")
+        print(f"Phase 5  - Objective Setup:    {obj_time:8.3f}s ({obj_time/total_time*100:5.1f}%)")
+        print(f"Phase 6  - Bounds Processing:  {bounds_time:8.3f}s ({bounds_time/total_time*100:5.1f}%)")
+        print(f"Phase 7  - Constraints:        {constraints_time:8.3f}s ({constraints_time/total_time*100:5.1f}%)")
+        print(f"Phase 8  - SOLVING:            {solve_time:8.3f}s ({solve_time/total_time*100:5.1f}%) ⭐")
+        print(f"Phase 9  - Results:            {results_time:8.3f}s ({results_time/total_time*100:5.1f}%)")
+        print(f"="*80)
+        
+        # Identify potential bottlenecks
+        bottleneck_threshold = 0.10 * total_time  # 10% of total time
+        print(f"BOTTLENECK ANALYSIS (phases >10% of total time):")
+        bottlenecks = []
+        if vars_time > bottleneck_threshold:
+            bottlenecks.append(f"  🐌 Variable Creation: {vars_time:.3f}s ({vars_time/total_time*100:.1f}%)")
+        if constraints_time > bottleneck_threshold:
+            bottlenecks.append(f"  🐌 Constraint Creation: {constraints_time:.3f}s ({constraints_time/total_time*100:.1f}%) [POTENTIAL OPTIMIZATION TARGET]")
+        if solve_time > bottleneck_threshold:
+            bottlenecks.append(f"  ⭐ Actual Solving: {solve_time:.3f}s ({solve_time/total_time*100:.1f}%) [Expected]")
+        
+        if not bottlenecks:
+            print(f"  ✅ No significant bottlenecks detected (all phases <10%)")
+        else:
+            for bottleneck in bottlenecks:
+                print(bottleneck)
+        
+        print(f"\nOPTIMIZATION OPPORTUNITIES:")
+        if constraints_time > bottleneck_threshold:
+            print(f"  🎯 Constraint creation loop may benefit from optimization")
+            print(f"  💡 Consider batch constraint creation similar to GAMS optimization")
+        else:
+            print(f"  ✅ Performance looks good - no obvious optimization targets")
     
     results = {
         'status': status,
@@ -331,9 +444,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python cuopt_pulp_solver.py problem.json                    # Use default solver
-  python cuopt_pulp_solver.py problem.json --solver GUROBI_CMD # Use specific solver
-  python cuopt_pulp_solver.py problem.json --quiet            # Minimal output
+  python cuopt_json_to_pulp.py problem.json                   # Use default solver
+  python cuopt_json_to_pulp.py problem.json --solver GUROBI_CMD # Use specific solver
+  python cuopt_json_to_pulp.py problem.json --quiet           # Minimal output
+  python cuopt_json_to_pulp.py problem.json --timing          # Show detailed timing analysis
 
 Available PuLP solvers (if installed):
   PULP_CBC_CMD, GUROBI_CMD, CPLEX_CMD, GLPK_CMD, COIN_CMD
@@ -358,6 +472,12 @@ Available PuLP solvers (if installed):
         help='Minimal output - only show final results'
     )
     
+    parser.add_argument(
+        '--timing', '-t',
+        action='store_true',
+        help='Show detailed timing breakdown for performance analysis'
+    )
+    
     args = parser.parse_args()
     
     # Check if file exists
@@ -369,7 +489,8 @@ Available PuLP solvers (if installed):
         results = solve_cuopt_json_with_pulp(
             args.json_file, 
             solver_name=args.solver,
-            verbose=not args.quiet
+            verbose=not args.quiet,
+            timing=args.timing
         )
         
         if args.quiet:
