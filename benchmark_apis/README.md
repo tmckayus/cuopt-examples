@@ -27,7 +27,10 @@ Conda:
 ```bash
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 ```
+Pip:
 
+```bash
+export LD_LIBRARY_PATH=COMPLETE_PATH_TO_libcuopt.so
 ## Usage
 
 ### Running Benchmarks
