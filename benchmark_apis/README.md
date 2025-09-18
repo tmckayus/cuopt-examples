@@ -21,7 +21,9 @@ Install cuOpt by following the instructions at [github.com/NVIDIA/cuopt](https:/
   - [https://jump.dev/JuMP.jl/stable/packages/cuOpt/](https://jump.dev/JuMP.jl/stable/packages/cuOpt/)
 
 ### Environment Setup
-For C and Julia APIs, set the library path:
+For C and Julia APIs, set the library path,
+
+Conda:
 ```bash
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 ```
