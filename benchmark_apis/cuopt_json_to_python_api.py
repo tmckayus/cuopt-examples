@@ -1,19 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  # noqa
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+# of the Software, and to permit persons to whom the Software is furnished to do
+# so, subject to the following conditions: The above copyright notice and this
+# permission notice shall be included in all copies or substantial portions of
+# the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 #!/usr/bin/env python3
 
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  # noqa
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
 cuOpt JSON to Problem API Converter (Version 2 - Bounds-Based Constraint Types)
 
@@ -79,7 +85,6 @@ def handle_infinity_values(data: Dict[str, Any]) -> Dict[str, Any]:
             return obj
     
     return transform_recursive(data)
-
 
 def create_problem_from_cuopt_json(json_file_path: str) -> Problem:
     """
@@ -226,7 +231,6 @@ def create_problem_from_cuopt_json(json_file_path: str) -> Problem:
     
     return prob
 
-
 def solve_cuopt_json_example(json_file_path: str, time_limit: float = 60.0):
     """
     Complete example: read cuOpt JSON file and solve using the new Problem API.
@@ -288,7 +292,6 @@ def solve_cuopt_json_example(json_file_path: str, time_limit: float = 60.0):
 
     return prob
 
-
 def create_example_cuopt_json(filename: str = "example_cuopt_problem.json"):
     """
     Create an example cuOpt JSON file for testing.
@@ -333,7 +336,6 @@ def create_example_cuopt_json(filename: str = "example_cuopt_problem.json"):
     
     print(f"Created example cuOpt JSON file: {filename}")
     return filename
-
 
 if __name__ == "__main__":
     # Check for command line argument
